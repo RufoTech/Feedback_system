@@ -120,7 +120,7 @@ export const Login: React.FC = () => {
             <img
               alt="Gusto Logo"
               className="h-12 w-12 object-contain"
-              src="https://lh3.googleusercontent.com/aida/ADBb0ugHZELWWzv84yZGC4tvvUpEAGiMy-hWwrEPimn76u12Bz8k4j5IvYSzkO_epoaF9FZwJFpK5K6zGodHshqZwZO82yBkH-NZGraLV0rfMizR7J-G1UkeeX-l3Qk0egZD3nJPmTxkNqnZdiRcAHmYfVYa9zJpM6qQbOdLYRPoTRTUS0hJt9g8-Et9S2JtD7777-_VMKU2nQLtdJxwLXibxta60PIdkzp7bVNfdKc4l2asTYMSn1O7iEwwfQPR"
+              src="/favicon.svg"
             />
             <span className="text-headline-md font-headline-md tracking-wider text-primary-container font-bold">Gusto</span>
           </div>
@@ -147,7 +147,7 @@ export const Login: React.FC = () => {
                 <img
                   alt="Gusto Logo"
                   className="h-10 w-10 object-contain"
-                  src="https://lh3.googleusercontent.com/aida/ADBb0ugHZELWWzv84yZGC4tvvUpEAGiMy-hWwrEPimn76u12Bz8k4j5IvYSzkO_epoaF9FZwJFpK5K6zGodHshqZwZO82yBkH-NZGraLV0rfMizR7J-G1UkeeX-l3Qk0egZD3nJPmTxkNqnZdiRcAHmYfVYa9zJpM6qQbOdLYRPoTRTUS0hJt9g8-Et9S2JtD7777-_VMKU2nQLtdJxwLXibxta60PIdkzp7bVNfdKc4l2asTYMSn1O7iEwwfQPR"
+                  src="/favicon.svg"
                 />
                 <span className="text-headline-md font-headline-md text-primary font-bold">Gusto</span>
               </div>
@@ -240,7 +240,7 @@ export const Login: React.FC = () => {
           <img
             alt="Gusto Logo"
             className="h-12 w-12 object-contain"
-            src="https://lh3.googleusercontent.com/aida/ADBb0ugHZELWWzv84yZGC4tvvUpEAGiMy-hWwrEPimn76u12Bz8k4j5IvYSzkO_epoaF9FZwJFpK5K6zGodHshqZwZO82yBkH-NZGraLV0rfMizR7J-G1UkeeX-l3Qk0egZD3nJPmTxkNqnZdiRcAHmYfVYa9zJpM6qQbOdLYRPoTRTUS0hJt9g8-Et9S2JtD7777-_VMKU2nQLtdJxwLXibxta60PIdkzp7bVNfdKc4l2asTYMSn1O7iEwwfQPR"
+            src="/favicon.svg"
           />
           <span className="text-headline-md font-headline-md tracking-wider text-primary-container font-bold">Gusto</span>
         </div>
@@ -270,7 +270,7 @@ export const Login: React.FC = () => {
               <img
                 alt="Gusto Logo"
                 className="h-10 w-10 object-contain"
-                src="https://lh3.googleusercontent.com/aida/ADBb0ugHZELWWzv84yZGC4tvvUpEAGiMy-hWwrEPimn76u12Bz8k4j5IvYSzkO_epoaF9FZwJFpK5K6zGodHshqZwZO82yBkH-NZGraLV0rfMizR7J-G1UkeeX-l3Qk0egZD3nJPmTxkNqnZdiRcAHmYfVYa9zJpM6qQbOdLYRPoTRTUS0hJt9g8-Et9S2JtD7777-_VMKU2nQLtdJxwLXibxta60PIdkzp7bVNfdKc4l2asTYMSn1O7iEwwfQPR"
+                src="/favicon.svg"
               />
               <span className="text-headline-md font-headline-md text-primary font-bold">Gusto</span>
             </div>

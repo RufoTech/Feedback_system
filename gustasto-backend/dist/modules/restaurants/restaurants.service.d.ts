@@ -8,8 +8,8 @@ export declare class RestaurantsService {
     createRestaurant(name: string, logo: string, address: string, description: string): Promise<RestaurantDocument>;
     findAllRestaurants(): Promise<RestaurantDocument[]>;
     findRestaurantById(id: string): Promise<RestaurantDocument>;
-    findTablesByRestaurant(restaurantId: string): Promise<TableDocument[]>;
-    createTable(restaurantId: string, tableNumber: string): Promise<TableDocument>;
+    findTablesByRestaurant(restaurantId: string, branchId?: string): Promise<TableDocument[]>;
+    createTable(restaurantId: string, tableNumber: string, branchId?: string): Promise<TableDocument>;
     findTableById(id: string): Promise<TableDocument>;
     deleteTable(tableId: string): Promise<{
         deleted: boolean;

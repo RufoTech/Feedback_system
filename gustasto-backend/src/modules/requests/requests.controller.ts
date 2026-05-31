@@ -14,35 +14,21 @@ import {
   HttpCode 
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
 import { RequestsService } from './requests.service';
+import { R2UploadService } from './r2-upload.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import * as fs from 'fs';
-
-// Disk yaddaşı konfiqurasiyası
-const storageOptions = diskStorage({
-  destination: (req: any, file: any, cb: any) => {
-    const uploadPath = './uploads';
-    if (!fs.existsSync(uploadPath)) {
-      fs.mkdirSync(uploadPath, { recursive: true });
-    }
-    cb(null, uploadPath);
-  },
-  filename: (req: any, file: any, cb: any) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, `${uniqueSuffix}${extname(file.originalname)}`);
-  },
-});
 
 @Controller('requests')
 export class RequestsController {
-  constructor(private readonly requestsService: RequestsService) {}
+  constructor(
+    private readonly requestsService: RequestsService,
+    private readonly r2UploadService: R2UploadService,
+  ) {}
 
   // 1. Müştəri üçün: Müraciət yaradılması (Review, Suggestion, Complaint)
-  // Şəkil yükləmək üçün FileInterceptor əlavə edirik
+  // Şəkil yükləmək üçün FileInterceptor əlavə edirik (default memoryStorage istifadə olunur)
   @Post()
-  @UseInterceptors(FileInterceptor('photo', { storage: storageOptions }))
+  @UseInterceptors(FileInterceptor('photo'))
   @HttpCode(HttpStatus.CREATED)
   async createRequest(
     @Body() body: {
@@ -55,14 +41,18 @@ export class RequestsController {
       isAnonymous?: string;
       customerName?: string;
       customerPhone?: string;
+      customerEmail?: string;
     },
     @UploadedFile() file: any,
   ) {
     const isAnon = body.isAnonymous === 'true' || (body.isAnonymous as any) === true;
     const ratingVal = body.rating ? parseInt(body.rating, 10) : 0;
     
-    // Şəkil yüklənibsə server linkini yaradırıq
-    const photoUrl = file ? `http://localhost:3000/uploads/${file.filename}` : '';
+    // Şəkil yüklənibsə Cloudflare R2-yə yükləyirik
+    let photoUrl = '';
+    if (file) {
+      photoUrl = await this.r2UploadService.uploadFile(file);
+    }
 
     return this.requestsService.createRequest({
       restaurantId: body.restaurantId,
@@ -74,6 +64,7 @@ export class RequestsController {
       isAnonymous: isAnon,
       customerName: body.customerName,
       customerPhone: body.customerPhone,
+      customerEmail: body.customerEmail,
       photoUrl,
     });
   }
@@ -84,20 +75,24 @@ export class RequestsController {
   async getRequests(
     @Request() req: any,
     @Query('type') type?: string,
-    @Query('status') status?: string,
+    @Query('startDate') startDate?: string,
+    @Query('branchId') branchId?: string,
   ) {
     // Giriş edən admin-in aid olduğu restoranın müraciətlərini gətiririk
     const restaurantId = req.user.restaurantId?.toString();
     if (!restaurantId) {
       return []; // Əgər restorana bağlı deyilsə boş siyahı
     }
-    return this.requestsService.findRequestsByRestaurant(restaurantId, { type, status });
+    return this.requestsService.findRequestsByRestaurant(restaurantId, { type, startDate, branchId });
   }
 
   // 3. Admin üçün: Analitika məlumatları (Auth tələb olunur)
   @UseGuards(JwtAuthGuard)
   @Get('stats')
-  async getStats(@Request() req: any) {
+  async getStats(
+    @Request() req: any,
+    @Query('branchId') branchId?: string,
+  ) {
     const restaurantId = req.user.restaurantId?.toString();
     if (!restaurantId) {
       return {
@@ -114,16 +109,6 @@ export class RequestsController {
         topZones: [],
       };
     }
-    return this.requestsService.getStats(restaurantId);
-  }
-
-  // 4. Admin üçün: Statusun dəyişdirilməsi (Auth tələb olunur)
-  @UseGuards(JwtAuthGuard)
-  @Patch(':id/status')
-  async updateStatus(
-    @Param('id') id: string,
-    @Body('status') status: string,
-  ) {
-    return this.requestsService.updateStatus(id, status);
+    return this.requestsService.getStats(restaurantId, branchId);
   }
 }

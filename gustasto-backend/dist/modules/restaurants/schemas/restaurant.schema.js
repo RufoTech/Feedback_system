@@ -16,6 +16,7 @@ let Restaurant = class Restaurant {
     logo;
     address;
     description;
+    branches;
 };
 exports.Restaurant = Restaurant;
 __decorate([
@@ -34,6 +35,17 @@ __decorate([
     (0, mongoose_1.Prop)({ default: '' }),
     __metadata("design:type", String)
 ], Restaurant.prototype, "description", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({
+        type: [{
+                name: { type: String, required: true },
+                address: { type: String, default: '' },
+                description: { type: String, default: '' }
+            }],
+        default: []
+    }),
+    __metadata("design:type", Array)
+], Restaurant.prototype, "branches", void 0);
 exports.Restaurant = Restaurant = __decorate([
     (0, mongoose_1.Schema)({ timestamps: true })
 ], Restaurant);

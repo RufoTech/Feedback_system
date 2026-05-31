@@ -1,5 +1,10 @@
-import React, { useState } from 'react';
-import { useGetRequestsQuery, useUpdateRequestStatusMutation } from '../store/services/adminApi';
+import React, { useState, useRef, useEffect } from 'react';
+import { useOutletContext } from 'react-router-dom';
+import { useGetRequestsQuery } from '../store/services/adminApi';
+import type { RequestSubmission } from '../store/services/adminApi';
+import { FaConciergeBell, FaFileExcel } from 'react-icons/fa';
+import * as XLSX from 'xlsx';
+import { ModalPortal } from '../components/ModalPortal';
 
 // Nisbi vaxtı hesablamaq üçün Azərbaycan dilində sadə funksiya
 const getRelativeTime = (dateStr: string): string => {
@@ -17,33 +22,129 @@ const getRelativeTime = (dateStr: string): string => {
 };
 
 export const DashboardHome: React.FC = () => {
+  const { selectedBranchId } = useOutletContext<{ selectedBranchId: string }>();
   const [activeFilter, setActiveFilter] = useState<'all' | 'suggestion' | 'complaint' | 'review'>('all');
-  const [searchTerm, setSearchTerm] = useState('');
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [selectedRequest, setSelectedRequest] = useState<RequestSubmission | null>(null);
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
+  const [showMobileExportModal, setShowMobileExportModal] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const exportDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Modal açıq olduqda body-ə class əlavə et (bottom nav-i gizlətmək üçün)
+  const anyModalOpen = selectedRequest !== null || selectedPhoto !== null || showMobileExportModal;
+  useEffect(() => {
+    if (anyModalOpen) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+    return () => document.body.classList.remove('modal-open');
+  }, [anyModalOpen]);
+
+  // Başqa yerə kliklədikdə export dropdown-u bağla
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.target as Node)) {
+        setShowExportDropdown(false);
+      }
+    };
+    if (showExportDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showExportDropdown]);
 
   // RTK Query müraciətləri çəkir, real vaxtda olması üçün hər 4 saniyədən bir yeniləyir (polling)
   const { data: requests = [], isLoading, error } = useGetRequestsQuery(
-    { type: activeFilter },
+    { type: activeFilter, branchId: selectedBranchId },
     { pollingInterval: 4000 }
   );
 
-  const [updateStatus, { isLoading: isUpdatingStatus }] = useUpdateRequestStatusMutation();
+  // Excel export funksiyası
+  const handleExport = async (period: 'daily' | 'monthly' | '6monthly' | 'yearly') => {
+    setShowExportDropdown(false);
+    setIsExporting(true);
 
-  const handleStatusChange = async (id: string, newStatus: string) => {
     try {
-      await updateStatus({ id, status: newStatus }).unwrap();
-    } catch (err) {
-      console.error('Status yenilənərkən xəta baş verdi:', err);
+      const now = new Date();
+      let startDate: Date;
+
+      switch (period) {
+        case 'daily':
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          break;
+        case 'monthly':
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          break;
+        case '6monthly':
+          startDate = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate());
+          break;
+        case 'yearly':
+          startDate = new Date(now.getFullYear(), 0, 1);
+          break;
+      }
+
+      const token = localStorage.getItem('admin_token');
+      const params = new URLSearchParams();
+      if (activeFilter && activeFilter !== 'all') params.set('type', activeFilter);
+      if (selectedBranchId) params.set('branchId', selectedBranchId);
+      params.set('startDate', startDate.toISOString());
+
+      const response = await fetch(`http://localhost:3000/api/requests?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Server xətası: ${response.status}`);
+      }
+
+      const exportRequests: RequestSubmission[] = await response.json();
+
+      if (exportRequests.length === 0) {
+        alert('Bu dövr üçün heç bir müraciət tapılmadı.');
+        return;
+      }
+
+      // Məlumatları cədvəl strukturuna çevir
+      const data = exportRequests.map(req => ({
+        'Masa': req.tableNumber,
+        'Kateqoriya': req.type === 'complaint' ? 'Şikayət' : req.type === 'suggestion' ? 'Təklif' : 'Rəy',
+        'Müraciət Mətni': req.text,
+        'Anonim': req.isAnonymous ? 'Bəli' : 'Xeyr',
+        'Ad Soyad': req.isAnonymous ? '' : (req.customerName || ''),
+        'Əlaqə Nömrəsi': req.isAnonymous ? '' : (req.customerPhone || ''),
+        'E-poçt': req.isAnonymous ? '' : (req.customerEmail || ''),
+        'Tarix / Vaxt': new Date(req.createdAt).toLocaleString('az-AZ'),
+      }));
+
+      // XLSX yarat və yüklə
+      const ws = XLSX.utils.json_to_sheet(data);
+
+      // Sütun genişliklərini avtomatik hesabla
+      const colWidths = Object.keys(data[0]).map(key => ({
+        wch: Math.max(key.length + 4, ...data.map(row => String(row[key as keyof typeof row] || '').length + 2)),
+      }));
+      ws['!cols'] = colWidths;
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Hesabat');
+
+      const periodLabels: Record<string, string> = {
+        daily: 'Günlük',
+        monthly: 'Aylıq',
+        '6monthly': '6_Aylıq',
+        yearly: 'İllik',
+      };
+      const dateStr = now.toISOString().split('T')[0];
+      XLSX.writeFile(wb, `Gusto_Hesabat_${periodLabels[period]}_${dateStr}.xlsx`);
+    } catch (err: any) {
+      console.error('Export xətası:', err);
+      alert(`Export zamanı xəta baş verdi: ${err.message}`);
+    } finally {
+      setIsExporting(false);
     }
   };
-
-  // Klient tərəfindən axtarış (Masa nömrəsinə və ya mətnə görə)
-  const filteredRequests = requests.filter(req => {
-    const tableMatches = req.tableNumber.toLowerCase().includes(searchTerm.toLowerCase());
-    const textMatches = req.text.toLowerCase().includes(searchTerm.toLowerCase());
-    const nameMatches = req.customerName ? req.customerName.toLowerCase().includes(searchTerm.toLowerCase()) : false;
-    return tableMatches || textMatches || nameMatches;
-  });
 
   return (
     <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 md:space-y-8 pb-24 md:pb-8">
@@ -92,16 +193,96 @@ export const DashboardHome: React.FC = () => {
           </button>
         </div>
 
-        {/* Client Search Bar */}
-        <div className="relative w-full sm:w-64">
-          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
-          <input
-            className="w-full pl-9 pr-4 py-2 bg-surface rounded-full border border-outline-variant/60 focus:ring-1 focus:ring-primary text-body-md font-body-md text-on-surface placeholder:text-on-surface-variant/60 transition-shadow"
-            placeholder="Axtar (Masa, mətn)..."
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        {/* Export Report — Mobile (opens modal) */}
+        <div className="md:hidden">
+          <button
+            onClick={() => setShowMobileExportModal(true)}
+            disabled={isExporting}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full font-label-md text-label-md border transition-all bg-surface text-on-surface border-outline-variant/50 hover:bg-surface-variant ${isExporting ? 'opacity-60 cursor-wait' : ''}`}
+          >
+            {isExporting ? (
+              <>
+                <div className="w-4 h-4 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
+                <span>Export edilir...</span>
+              </>
+            ) : (
+              <>
+                <FaFileExcel className="text-green-600 text-base" />
+                <span>Hesabat</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Export Report Dropdown — Desktop */}
+        <div className="relative hidden md:block" ref={exportDropdownRef}>
+          <button
+            onClick={() => setShowExportDropdown(prev => !prev)}
+            disabled={isExporting}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full font-label-md text-label-md border transition-all ${
+              showExportDropdown
+                ? 'bg-primary-container text-on-primary-container border-primary font-semibold'
+                : 'bg-surface text-on-surface border-outline-variant/50 hover:bg-surface-variant'
+            } ${isExporting ? 'opacity-60 cursor-wait' : ''}`}
+          >
+            {isExporting ? (
+              <>
+                <div className="w-4 h-4 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
+                <span>Export edilir...</span>
+              </>
+            ) : (
+              <>
+                <FaFileExcel className="text-green-600 text-base" />
+                <span>Hesabat</span>
+                <span className="material-symbols-outlined text-sm">expand_more</span>
+              </>
+            )}
+          </button>
+
+          {showExportDropdown && (
+            <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-52 bg-surface rounded-xl shadow-lg border border-outline-variant/30 z-40 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
+              <button
+                onClick={() => handleExport('daily')}
+                className="w-full text-left px-4 py-3 hover:bg-surface-variant transition-colors flex items-center gap-3 border-b border-outline-variant/10"
+              >
+                <span className="material-symbols-outlined text-primary text-lg">today</span>
+                <div>
+                  <p className="font-body-md text-body-md text-on-surface font-medium">Günlük</p>
+                  <p className="text-label-sm text-on-surface-variant">Bu günün hesabatı</p>
+                </div>
+              </button>
+              <button
+                onClick={() => handleExport('monthly')}
+                className="w-full text-left px-4 py-3 hover:bg-surface-variant transition-colors flex items-center gap-3 border-b border-outline-variant/10"
+              >
+                <span className="material-symbols-outlined text-primary text-lg">calendar_month</span>
+                <div>
+                  <p className="font-body-md text-body-md text-on-surface font-medium">Aylıq</p>
+                  <p className="text-label-sm text-on-surface-variant">Bu ayın hesabatı</p>
+                </div>
+              </button>
+              <button
+                onClick={() => handleExport('6monthly')}
+                className="w-full text-left px-4 py-3 hover:bg-surface-variant transition-colors flex items-center gap-3 border-b border-outline-variant/10"
+              >
+                <span className="material-symbols-outlined text-primary text-lg">date_range</span>
+                <div>
+                  <p className="font-body-md text-body-md text-on-surface font-medium">6 Aylıq</p>
+                  <p className="text-label-sm text-on-surface-variant">Son 6 ayın hesabatı</p>
+                </div>
+              </button>
+              <button
+                onClick={() => handleExport('yearly')}
+                className="w-full text-left px-4 py-3 hover:bg-surface-variant transition-colors flex items-center gap-3"
+              >
+                <span className="material-symbols-outlined text-primary text-lg">event</span>
+                <div>
+                  <p className="font-body-md text-body-md text-on-surface font-medium">İllik</p>
+                  <p className="text-label-sm text-on-surface-variant">Bu ilin hesabatı</p>
+                </div>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -109,11 +290,10 @@ export const DashboardHome: React.FC = () => {
       <div className="bg-surface rounded-xl shadow-[0px_4px_20px_rgba(0,0,0,0.04)] border border-outline-variant/20 overflow-hidden">
         {/* Table Header (Desktop) */}
         <div className="hidden md:grid grid-cols-12 gap-4 p-4 border-b border-outline-variant/30 bg-surface-container/30">
-          <div className="col-span-2 font-label-sm text-label-sm text-on-surface-variant font-bold">Masa / Qonaq</div>
+          <div className="col-span-3 font-label-sm text-label-sm text-on-surface-variant font-bold">Masa / Qonaq</div>
           <div className="col-span-2 font-label-sm text-label-sm text-on-surface-variant font-bold">Kateqoriya</div>
-          <div className="col-span-4 font-label-sm text-label-sm text-on-surface-variant font-bold">Müraciət Mətni</div>
+          <div className="col-span-5 font-label-sm text-label-sm text-on-surface-variant font-bold">Müraciət Mətni</div>
           <div className="col-span-2 font-label-sm text-label-sm text-on-surface-variant font-bold">Tarix / Vaxt</div>
-          <div className="col-span-2 font-label-sm text-label-sm text-on-surface-variant font-bold text-right">Status / İdarəetmə</div>
         </div>
 
         {/* Table Rows */}
@@ -127,14 +307,14 @@ export const DashboardHome: React.FC = () => {
             <span className="material-symbols-outlined text-4xl mb-2">error</span>
             <p className="font-semibold text-body-md">Müraciətlər yüklənərkən xəta baş verdi</p>
           </div>
-        ) : filteredRequests.length === 0 ? (
+        ) : requests.length === 0 ? (
           <div className="p-12 text-center text-on-surface-variant">
-            <span className="material-symbols-outlined text-4xl mb-2 text-primary/30">concierge_bell</span>
+            <FaConciergeBell className="text-4xl mb-2 text-primary/30" />
             <p className="font-semibold text-body-md">Müraciət tapılmadı</p>
           </div>
         ) : (
-          <div className="divide-y divide-outline-variant/20">
-            {filteredRequests.map((req) => {
+          <div className="space-y-2 p-2">
+            {requests.map((req) => {
               // Kateqoriyaya görə xüsusi rənglər və ikonlar
               let catBadge = '';
               let catIcon = '';
@@ -143,24 +323,25 @@ export const DashboardHome: React.FC = () => {
               if (req.type === 'complaint') {
                 catBadge = 'bg-error-container text-on-error-container';
                 catIcon = 'priority_high';
-                borderClass = req.status === 'pending' ? 'border-error bg-error-container/5' : 'border-error/40';
+                borderClass = 'border-error bg-error-container/5';
               } else if (req.type === 'suggestion') {
                 catBadge = 'bg-secondary-container text-on-secondary-container';
                 catIcon = 'lightbulb';
-                borderClass = req.status === 'pending' ? 'border-amber-500 bg-amber-500/5' : 'border-amber-500/40';
+                borderClass = 'border-amber-500 bg-amber-500/5';
               } else {
                 catBadge = 'bg-tertiary-container text-on-tertiary-container';
                 catIcon = 'star';
-                borderClass = req.status === 'pending' ? 'border-primary bg-primary/5' : 'border-primary/40';
+                borderClass = 'border-primary bg-primary/5';
               }
 
               return (
                 <div
                   key={req._id}
-                  className={`grid grid-cols-1 md:grid-cols-12 gap-4 p-4 items-center hover:bg-surface-container/30 transition-colors border-l-4 ${borderClass}`}
+                  onClick={() => setSelectedRequest(req)}
+                  className={`grid grid-cols-1 md:grid-cols-12 gap-4 p-4 items-center bg-surface hover:bg-surface-container/30 transition-all border-l-4 cursor-pointer rounded-xl shadow-[0px_2px_12px_rgba(0,0,0,0.06)] hover:shadow-[0px_4px_20px_rgba(0,0,0,0.1)] active:scale-[0.99] ${borderClass}`}
                 >
                   {/* Table / Guest */}
-                  <div className="col-span-1 md:col-span-2 flex items-center">
+                  <div className="col-span-1 md:col-span-3 flex items-center">
                     <div className="w-10 h-10 rounded-full bg-surface-variant flex items-center justify-center font-bold text-on-surface shrink-0">
                       {req.tableNumber}
                     </div>
@@ -181,7 +362,7 @@ export const DashboardHome: React.FC = () => {
                   </div>
 
                   {/* Submission Text */}
-                  <div className="col-span-1 md:col-span-4 flex flex-col gap-2">
+                  <div className="col-span-1 md:col-span-5 flex flex-col gap-2">
                     {req.type === 'review' && req.rating > 0 && (
                       <div className="flex text-amber-500">
                         {Array.from({ length: 5 }).map((_, i) => (
@@ -208,7 +389,10 @@ export const DashboardHome: React.FC = () => {
                     {req.photoUrl && (
                       <div className="mt-1">
                         <button
-                          onClick={() => setSelectedPhoto(req.photoUrl || null)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedPhoto(req.photoUrl || null);
+                          }}
                           className="flex items-center gap-1.5 p-1 bg-surface-container rounded-lg border border-outline-variant hover:bg-surface-variant transition-colors"
                         >
                           <img
@@ -234,33 +418,6 @@ export const DashboardHome: React.FC = () => {
                       </p>
                     </div>
                   </div>
-
-                  {/* Actions / Status */}
-                  <div className="col-span-1 md:col-span-2 flex justify-end gap-2 mt-2 md:mt-0">
-                    {req.status === 'pending' ? (
-                      <button
-                        onClick={() => handleStatusChange(req._id, 'in_progress')}
-                        disabled={isUpdatingStatus}
-                        className="px-4 py-2 bg-primary text-on-primary rounded-lg font-label-sm text-label-sm font-bold hover:opacity-90 active:scale-[0.98] transition-colors w-full md:w-auto shadow-sm"
-                      >
-                        Təsdiqlə
-                      </button>
-                    ) : req.status === 'in_progress' ? (
-                      <button
-                        onClick={() => handleStatusChange(req._id, 'completed')}
-                        disabled={isUpdatingStatus}
-                        className="px-4 py-2 bg-green-600 text-white rounded-lg font-label-sm text-label-sm font-bold hover:bg-green-700 active:scale-[0.98] transition-colors w-full md:w-auto shadow-sm flex items-center justify-center gap-1"
-                      >
-                        <span className="material-symbols-outlined text-[16px]">check</span>
-                        Tamamla
-                      </button>
-                    ) : (
-                      <span className="inline-flex items-center text-label-md font-label-md font-semibold text-green-600 px-3 py-1 bg-green-50 rounded-full border border-green-200">
-                        <span className="material-symbols-outlined text-[16px] mr-1">check_circle</span>
-                        Tamamlandı
-                      </span>
-                    )}
-                  </div>
                 </div>
               );
             })}
@@ -268,8 +425,117 @@ export const DashboardHome: React.FC = () => {
         )}
       </div>
 
+      {/* Premium Details Modal Overlay */}
+      {selectedRequest && (
+        <ModalPortal>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-surface rounded-2xl p-6 max-w-lg w-full relative flex flex-col gap-5 shadow-2xl border border-outline-variant/30 animate-in fade-in zoom-in-95 duration-200">
+            <button
+              onClick={() => setSelectedRequest(null)}
+              className="absolute top-4 right-4 w-10 h-10 bg-surface-variant/40 hover:bg-surface-variant/80 text-on-surface rounded-full flex items-center justify-center transition-colors focus:outline-none"
+            >
+              <span className="material-symbols-outlined">close</span>
+            </button>
+
+            <div className="flex items-center gap-3">
+              <span className={`inline-flex items-center justify-center w-10 h-10 rounded-full ${
+                selectedRequest.type === 'complaint' 
+                  ? 'bg-error-container text-on-error-container' 
+                  : selectedRequest.type === 'suggestion' 
+                    ? 'bg-secondary-container text-on-secondary-container' 
+                    : 'bg-tertiary-container text-on-tertiary-container'
+              }`}>
+                <span className="material-symbols-outlined">
+                  {selectedRequest.type === 'complaint' ? 'priority_high' : selectedRequest.type === 'suggestion' ? 'lightbulb' : 'star'}
+                </span>
+              </span>
+              <div>
+                <h3 className="text-title-lg font-bold text-on-surface">
+                  {selectedRequest.type === 'complaint' ? 'Şikayət' : selectedRequest.type === 'suggestion' ? 'Təklif' : 'Rəy'}
+                </h3>
+                <p className="text-label-sm text-on-surface-variant">Masa {selectedRequest.tableNumber}</p>
+              </div>
+            </div>
+
+            <div className="border-t border-b border-outline-variant/30 py-4 my-1">
+              <p className="text-body-lg text-on-surface leading-relaxed italic font-medium">
+                "{selectedRequest.text}"
+              </p>
+              
+              {selectedRequest.type === 'review' && selectedRequest.rating > 0 && (
+                <div className="flex text-amber-500 mt-2">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <span
+                      key={i}
+                      className={`material-symbols-outlined text-lg ${
+                        i < selectedRequest.rating ? 'icon-fill' : 'opacity-30'
+                      }`}
+                    >
+                      star
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              <h4 className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider">Göndərən Məlumatları</h4>
+              {selectedRequest.isAnonymous ? (
+                <div className="bg-surface-variant/30 rounded-xl p-4 border border-outline-variant/20 flex items-center gap-2.5 text-on-surface-variant">
+                  <span className="material-symbols-outlined text-amber-600">visibility_off</span>
+                  <span className="font-semibold text-body-md">Mesaj anonimdir</span>
+                </div>
+              ) : (
+                <div className="bg-surface-variant/20 rounded-xl p-4 border border-outline-variant/20 space-y-2">
+                  <p className="text-body-md text-on-surface">
+                    <span className="font-bold text-on-surface-variant">Ad Soyad: </span>
+                    {selectedRequest.customerName || 'Qeyd edilməyib'}
+                  </p>
+                  <p className="text-body-md text-on-surface">
+                    <span className="font-bold text-on-surface-variant">Telefon: </span>
+                    {selectedRequest.customerPhone || 'Qeyd edilməyib'}
+                  </p>
+                  <p className="text-body-md text-on-surface">
+                    <span className="font-bold text-on-surface-variant">E-poçt: </span>
+                    {selectedRequest.customerEmail || 'Qeyd edilməyib'}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {selectedRequest.photoUrl && (
+              <div className="mt-1 flex flex-col gap-2">
+                <span className="text-label-sm font-bold text-on-surface-variant uppercase tracking-wider">Əlavə edilən şəkil</span>
+                <div className="relative group max-w-[200px] cursor-pointer" onClick={() => setSelectedPhoto(selectedRequest.photoUrl || null)}>
+                  <img
+                    src={selectedRequest.photoUrl}
+                    alt="Müraciət şəkli"
+                    className="w-full h-24 object-cover rounded-lg border border-outline-variant hover:opacity-90 transition-opacity"
+                  />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
+                    <span className="material-symbols-outlined text-white text-lg">zoom_in</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between text-label-sm text-on-surface-variant mt-2">
+              <span>{new Date(selectedRequest.createdAt).toLocaleString('az-AZ')}</span>
+              <button
+                onClick={() => setSelectedRequest(null)}
+                className="px-5 py-2 bg-primary text-on-primary font-bold rounded-lg hover:opacity-90 active:scale-95 transition-all shadow-sm"
+              >
+                Bağla
+              </button>
+            </div>
+          </div>
+        </div>
+        </ModalPortal>
+      )}
+
       {/* Premium Photo Modal Overlay */}
       {selectedPhoto && (
+        <ModalPortal>
         <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-4 max-w-2xl w-full relative flex flex-col items-center shadow-2xl border border-outline-variant/30">
             <button
@@ -292,6 +558,92 @@ export const DashboardHome: React.FC = () => {
             </button>
           </div>
         </div>
+        </ModalPortal>
+      )}
+
+      {/* Mobile Export Report Modal */}
+      {showMobileExportModal && (
+        <ModalPortal>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] p-5 md:hidden">
+          <div className="bg-surface w-full max-w-sm rounded-3xl p-6 shadow-2xl border border-outline-variant/30 animate-in fade-in zoom-in-95 duration-200 max-h-[80vh] flex flex-col absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center">
+                  <FaFileExcel className="text-green-600 text-lg" />
+                </div>
+                <div>
+                  <h3 className="text-title-lg font-bold text-on-surface">Hesabat</h3>
+                  <p className="text-label-sm text-on-surface-variant">Excel faylı yüklə</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowMobileExportModal(false)}
+                className="w-10 h-10 bg-surface-variant/40 hover:bg-surface-variant/80 text-on-surface rounded-full flex items-center justify-center transition-colors"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <div className="space-y-3 overflow-y-auto">
+              <button
+                onClick={() => { handleExport('daily'); setShowMobileExportModal(false); }}
+                disabled={isExporting}
+                className="w-full text-left px-5 py-4 bg-surface-container/50 hover:bg-surface-variant rounded-2xl transition-colors flex items-center gap-4 active:scale-[0.98]"
+              >
+                <span className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined text-primary text-xl">today</span>
+                </span>
+                <div>
+                  <p className="font-body-lg text-body-lg text-on-surface font-semibold">Günlük</p>
+                  <p className="text-label-sm text-on-surface-variant">Bu günün hesabatı</p>
+                </div>
+              </button>
+
+              <button
+                onClick={() => { handleExport('monthly'); setShowMobileExportModal(false); }}
+                disabled={isExporting}
+                className="w-full text-left px-5 py-4 bg-surface-container/50 hover:bg-surface-variant rounded-2xl transition-colors flex items-center gap-4 active:scale-[0.98]"
+              >
+                <span className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined text-primary text-xl">calendar_month</span>
+                </span>
+                <div>
+                  <p className="font-body-lg text-body-lg text-on-surface font-semibold">Aylıq</p>
+                  <p className="text-label-sm text-on-surface-variant">Bu ayın hesabatı</p>
+                </div>
+              </button>
+
+              <button
+                onClick={() => { handleExport('6monthly'); setShowMobileExportModal(false); }}
+                disabled={isExporting}
+                className="w-full text-left px-5 py-4 bg-surface-container/50 hover:bg-surface-variant rounded-2xl transition-colors flex items-center gap-4 active:scale-[0.98]"
+              >
+                <span className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined text-primary text-xl">date_range</span>
+                </span>
+                <div>
+                  <p className="font-body-lg text-body-lg text-on-surface font-semibold">6 Aylıq</p>
+                  <p className="text-label-sm text-on-surface-variant">Son 6 ayın hesabatı</p>
+                </div>
+              </button>
+
+              <button
+                onClick={() => { handleExport('yearly'); setShowMobileExportModal(false); }}
+                disabled={isExporting}
+                className="w-full text-left px-5 py-4 bg-surface-container/50 hover:bg-surface-variant rounded-2xl transition-colors flex items-center gap-4 active:scale-[0.98]"
+              >
+                <span className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined text-primary text-xl">event</span>
+                </span>
+                <div>
+                  <p className="font-body-lg text-body-lg text-on-surface font-semibold">İllik</p>
+                  <p className="text-label-sm text-on-surface-variant">Bu ilin hesabatı</p>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+        </ModalPortal>
       )}
     </div>
   );

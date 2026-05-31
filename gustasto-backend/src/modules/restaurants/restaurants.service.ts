@@ -31,14 +31,18 @@ export class RestaurantsService {
     return restaurant;
   }
 
-  async findTablesByRestaurant(restaurantId: string): Promise<TableDocument[]> {
+  async findTablesByRestaurant(restaurantId: string, branchId?: string): Promise<TableDocument[]> {
     if (!Types.ObjectId.isValid(restaurantId)) {
       throw new NotFoundException('Keçərsiz Restoran ID formatı');
     }
-    return this.tableModel.find({ restaurantId: new Types.ObjectId(restaurantId) }).exec();
+    const query: any = { restaurantId: new Types.ObjectId(restaurantId) };
+    if (branchId && Types.ObjectId.isValid(branchId)) {
+      query.branchId = new Types.ObjectId(branchId);
+    }
+    return this.tableModel.find(query).exec();
   }
 
-  async createTable(restaurantId: string, tableNumber: string): Promise<TableDocument> {
+  async createTable(restaurantId: string, tableNumber: string, branchId?: string): Promise<TableDocument> {
     if (!Types.ObjectId.isValid(restaurantId)) {
       throw new NotFoundException('Keçərsiz Restoran ID formatı');
     }
@@ -49,11 +53,16 @@ export class RestaurantsService {
       throw new NotFoundException('Restoran tapılmadı');
     }
 
-    const table = new this.tableModel({
+    const tableData: any = {
       restaurantId: new Types.ObjectId(restaurantId),
       tableNumber,
-    });
-    
+    };
+
+    if (branchId && Types.ObjectId.isValid(branchId)) {
+      tableData.branchId = new Types.ObjectId(branchId);
+    }
+
+    const table = new this.tableModel(tableData);
     const savedTable = await table.save();
     
     // QR kod linkini təyin edirik

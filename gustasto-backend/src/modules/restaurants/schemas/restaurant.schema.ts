@@ -16,6 +16,17 @@ export class Restaurant {
 
   @Prop({ default: '' })
   description: string;
+
+  @Prop({
+    type: [{
+      name: { type: String, required: true },
+      address: { type: String, default: '' },
+      description: { type: String, default: '' }
+    }],
+    default: []
+  })
+  branches: Array<{ _id: any; name: string; address?: string; description?: string }>;
 }
 
 export const RestaurantSchema = SchemaFactory.createForClass(Restaurant);
+

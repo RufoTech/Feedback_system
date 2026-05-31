@@ -1,7 +1,9 @@
 import { RequestsService } from './requests.service';
+import { R2UploadService } from './r2-upload.service';
 export declare class RequestsController {
     private readonly requestsService;
-    constructor(requestsService: RequestsService);
+    private readonly r2UploadService;
+    constructor(requestsService: RequestsService, r2UploadService: R2UploadService);
     createRequest(body: {
         restaurantId: string;
         tableId: string;
@@ -12,9 +14,10 @@ export declare class RequestsController {
         isAnonymous?: string;
         customerName?: string;
         customerPhone?: string;
+        customerEmail?: string;
     }, file: any): Promise<import("./schemas/request.schema").RequestDocument>;
-    getRequests(req: any, type?: string, status?: string): Promise<import("./schemas/request.schema").RequestDocument[]>;
-    getStats(req: any): Promise<{
+    getRequests(req: any, type?: string, startDate?: string, branchId?: string): Promise<import("./schemas/request.schema").RequestDocument[]>;
+    getStats(req: any, branchId?: string): Promise<{
         totalRequests: number;
         avgCsat: number;
         typeDistribution: {
@@ -47,5 +50,4 @@ export declare class RequestsController {
             csat: number;
         }[];
     }>;
-    updateStatus(id: string, status: string): Promise<import("./schemas/request.schema").RequestDocument>;
 }

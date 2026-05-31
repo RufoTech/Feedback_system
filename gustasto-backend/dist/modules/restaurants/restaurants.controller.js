@@ -26,11 +26,11 @@ let RestaurantsController = class RestaurantsController {
     async getRestaurantById(id) {
         return this.restaurantsService.findRestaurantById(id);
     }
-    async getTablesByRestaurant(id) {
-        return this.restaurantsService.findTablesByRestaurant(id);
+    async getTablesByRestaurant(id, branchId) {
+        return this.restaurantsService.findTablesByRestaurant(id, branchId);
     }
-    async createTable(restaurantId, tableNumber) {
-        return this.restaurantsService.createTable(restaurantId, tableNumber);
+    async createTable(restaurantId, tableNumber, branchId) {
+        return this.restaurantsService.createTable(restaurantId, tableNumber, branchId);
     }
     async deleteTable(tableId) {
         return this.restaurantsService.deleteTable(tableId);
@@ -38,6 +38,17 @@ let RestaurantsController = class RestaurantsController {
     async getTableById(tableId) {
         const table = await this.restaurantsService.findTableById(tableId);
         const restaurant = await this.restaurantsService.findRestaurantById(table.restaurantId.toString());
+        let branchInfo = null;
+        if (table.branchId && restaurant.branches) {
+            const branch = restaurant.branches.find((b) => b._id.toString() === table.branchId.toString());
+            if (branch) {
+                branchInfo = {
+                    id: branch._id,
+                    name: branch.name,
+                    address: branch.address,
+                };
+            }
+        }
         return {
             id: table._id,
             tableNumber: table.tableNumber,
@@ -48,6 +59,7 @@ let RestaurantsController = class RestaurantsController {
                 logo: restaurant.logo,
                 address: restaurant.address,
             },
+            branch: branchInfo,
         };
     }
 };
@@ -68,8 +80,9 @@ __decorate([
 __decorate([
     (0, common_1.Get)('restaurants/:id/tables'),
     __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Query)('branchId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", Promise)
 ], RestaurantsController.prototype, "getTablesByRestaurant", null);
 __decorate([
@@ -77,8 +90,9 @@ __decorate([
     (0, common_1.HttpCode)(common_1.HttpStatus.CREATED),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)('tableNumber')),
+    __param(2, (0, common_1.Body)('branchId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:paramtypes", [String, String, String]),
     __metadata("design:returntype", Promise)
 ], RestaurantsController.prototype, "createTable", null);
 __decorate([

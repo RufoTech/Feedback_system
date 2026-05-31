@@ -26,28 +26,39 @@ function SessionManager({ children }: { children: React.ReactNode }) {
   }, [queryTableId, queryRestaurantId]);
 
   // RTK Query ilə Masa və Restoran məlumatlarını çəkirik
-  const { data: tableData, error, isLoading } = useGetTableQuery(activeTableId || "", {
-    skip: !activeTableId,
+  const { data: tableData, error, isLoading } = useGetTableQuery(activeTableId || session.tableId || "", {
+    skip: !activeTableId && !session.tableId,
   });
 
   useEffect(() => {
     if (tableData) {
-      // Məlumatlar uğurla çəkildikdə session-a yazırıq
-      dispatch(
-        setSession({
-          restaurantId: tableData.restaurant.id,
-          tableId: tableData.id,
-          tableNumber: tableData.tableNumber,
-          restaurantName: tableData.restaurant.name,
-          logo: tableData.restaurant.logo,
-          address: tableData.restaurant.address,
-        })
-      );
-      // URL-i təmizləyirik (query string silinir)
-      setSearchParams({}, { replace: true });
-      setActiveTableId(null);
+      const needsUpdate = 
+        session.restaurantId !== tableData.restaurant.id ||
+        session.tableId !== tableData.id ||
+        session.tableNumber !== tableData.tableNumber ||
+        session.restaurantName !== tableData.restaurant.name ||
+        session.logo !== tableData.restaurant.logo ||
+        session.address !== tableData.restaurant.address;
+
+      if (needsUpdate) {
+        dispatch(
+          setSession({
+            restaurantId: tableData.restaurant.id,
+            tableId: tableData.id,
+            tableNumber: tableData.tableNumber,
+            restaurantName: tableData.restaurant.name,
+            logo: tableData.restaurant.logo,
+            address: tableData.restaurant.address,
+          })
+        );
+      }
+      
+      if (activeTableId) {
+        setSearchParams({}, { replace: true });
+        setActiveTableId(null);
+      }
     }
-  }, [tableData, dispatch, setSearchParams]);
+  }, [tableData, dispatch, setSearchParams, activeTableId, session]);
 
   // Əgər URL-dən parametr gəlibsə və yüklənirsə, premium spinner göstərək
   if (activeTableId && isLoading) {

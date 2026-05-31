@@ -16,6 +16,7 @@ const auth_module_1 = require("./modules/auth/auth.module");
 const mail_module_1 = require("./modules/mail/mail.module");
 const restaurants_module_1 = require("./modules/restaurants/restaurants.module");
 const requests_module_1 = require("./modules/requests/requests.module");
+const super_admin_module_1 = require("./modules/super-admin/super-admin.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -30,6 +31,7 @@ exports.AppModule = AppModule = __decorate([
             mail_module_1.MailModule,
             restaurants_module_1.RestaurantsModule,
             requests_module_1.RequestsModule,
+            super_admin_module_1.SuperAdminModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],

@@ -102,9 +102,9 @@ async function run() {
         if (existingAdmin) {
             console.log(`ℹ️ Admin (${adminEmail}) artıq mövcuddur.`);
             existingAdmin.restaurantId = restaurant._id;
-            existingAdmin.role = 'super_admin';
+            existingAdmin.role = 'admin';
             await existingAdmin.save();
-            console.log(`✅ Admin (${adminEmail}) restoran ID-si update olundu.`);
+            console.log(`✅ Admin (${adminEmail}) update olundu (rol: admin).`);
         }
         else {
             const salt = await bcrypt.genSalt(10);
@@ -112,14 +112,34 @@ async function run() {
             const newAdmin = new Admin({
                 email: adminEmail,
                 password: hashedPassword,
-                name: 'Admin User',
-                role: 'super_admin',
+                name: 'Gusto Baku Admin',
+                role: 'admin',
                 restaurantId: restaurant._id,
             });
             await newAdmin.save();
             console.log('🎉 Default admin hesabı uğurla yaradıldı!');
             console.log(`📧 Email: ${adminEmail}`);
             console.log('🔑 Şifrə: admin123');
+        }
+        const superAdminEmail = 'superadmin@gusto.com';
+        const existingSuperAdmin = await Admin.findOne({ email: superAdminEmail });
+        if (existingSuperAdmin) {
+            console.log(`ℹ️ Super Admin (${superAdminEmail}) artıq mövcuddur.`);
+        }
+        else {
+            const salt = await bcrypt.genSalt(10);
+            const hashedPassword = await bcrypt.hash('superadmin123', salt);
+            const newSuperAdmin = new Admin({
+                email: superAdminEmail,
+                password: hashedPassword,
+                name: 'Sistem Super Admin',
+                role: 'super_admin',
+                restaurantId: null,
+            });
+            await newSuperAdmin.save();
+            console.log('🎉 Default super admin hesabı uğurla yaradıldı!');
+            console.log(`📧 Email: ${superAdminEmail}`);
+            console.log('🔑 Şifrə: superadmin123');
         }
     }
     catch (error) {

@@ -47,6 +47,7 @@ const mongoose_1 = require("@nestjs/mongoose");
 const mongoose = __importStar(require("mongoose"));
 let Table = class Table {
     restaurantId;
+    branchId;
     tableNumber;
     qrCodeUrl;
 };
@@ -55,6 +56,10 @@ __decorate([
     (0, mongoose_1.Prop)({ type: mongoose.Schema.Types.ObjectId, ref: 'Restaurant', required: true, index: true }),
     __metadata("design:type", mongoose.Types.ObjectId)
 ], Table.prototype, "restaurantId", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: mongoose.Schema.Types.ObjectId, default: null, index: true }),
+    __metadata("design:type", mongoose.Types.ObjectId)
+], Table.prototype, "branchId", void 0);
 __decorate([
     (0, mongoose_1.Prop)({ required: true }),
     __metadata("design:type", String)

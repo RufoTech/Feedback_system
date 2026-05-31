@@ -31,3 +31,13 @@ body {
   margin: 0;
   padding: 0;
 }
+
+/* Modal açıq olduqda mobil alt navigasiyanı gizlət */
+body.modal-open .bottom-nav-mobile {
+  display: none !important;
+}
+
+/* Portal vasitəsilə gələn modalların düzgün görünməsi üçün */
+body.modal-open {
+  overflow: hidden;
+}

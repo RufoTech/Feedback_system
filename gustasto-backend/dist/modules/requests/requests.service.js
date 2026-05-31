@@ -17,14 +17,20 @@ const common_1 = require("@nestjs/common");
 const mongoose_1 = require("@nestjs/mongoose");
 const mongoose_2 = require("mongoose");
 const request_schema_1 = require("./schemas/request.schema");
+const table_schema_1 = require("../restaurants/schemas/table.schema");
 let RequestsService = class RequestsService {
     requestModel;
-    constructor(requestModel) {
+    tableModel;
+    constructor(requestModel, tableModel) {
         this.requestModel = requestModel;
+        this.tableModel = tableModel;
     }
     async createRequest(data) {
+        const table = await this.tableModel.findById(data.tableId).exec();
+        const branchId = table?.branchId || null;
         const request = new this.requestModel({
             restaurantId: new mongoose_2.Types.ObjectId(data.restaurantId),
+            branchId: branchId,
             tableId: new mongoose_2.Types.ObjectId(data.tableId),
             tableNumber: data.tableNumber,
             type: data.type,
@@ -33,8 +39,8 @@ let RequestsService = class RequestsService {
             isAnonymous: data.isAnonymous || false,
             customerName: data.isAnonymous ? '' : data.customerName || '',
             customerPhone: data.isAnonymous ? '' : data.customerPhone || '',
+            customerEmail: data.isAnonymous ? '' : data.customerEmail || '',
             photoUrl: data.photoUrl || '',
-            status: 'pending',
         });
         return request.save();
     }
@@ -46,28 +52,24 @@ let RequestsService = class RequestsService {
         if (filters.type) {
             query.type = filters.type;
         }
-        if (filters.status) {
-            query.status = filters.status;
+        if (filters.startDate) {
+            query.createdAt = { $gte: new Date(filters.startDate) };
+        }
+        if (filters.branchId && mongoose_2.Types.ObjectId.isValid(filters.branchId)) {
+            query.branchId = new mongoose_2.Types.ObjectId(filters.branchId);
         }
         return this.requestModel.find(query).sort({ createdAt: -1 }).exec();
     }
-    async updateStatus(requestId, status) {
-        if (!mongoose_2.Types.ObjectId.isValid(requestId)) {
-            throw new common_1.NotFoundException('Keçərsiz Müraciət ID formatı');
-        }
-        const request = await this.requestModel.findById(requestId).exec();
-        if (!request) {
-            throw new common_1.NotFoundException('Müraciət tapılmadı');
-        }
-        request.status = status;
-        return request.save();
-    }
-    async getStats(restaurantId) {
+    async getStats(restaurantId, branchId) {
         if (!mongoose_2.Types.ObjectId.isValid(restaurantId)) {
             throw new common_1.NotFoundException('Keçərsiz Restoran ID formatı');
         }
         const objectId = new mongoose_2.Types.ObjectId(restaurantId);
-        const allRequests = await this.requestModel.find({ restaurantId: objectId }).exec();
+        const query = { restaurantId: objectId };
+        if (branchId && mongoose_2.Types.ObjectId.isValid(branchId)) {
+            query.branchId = new mongoose_2.Types.ObjectId(branchId);
+        }
+        const allRequests = await this.requestModel.find(query).exec();
         const totalRequests = allRequests.length;
         const ratingRequests = allRequests.filter(r => r.rating > 0);
         const avgCsat = ratingRequests.length > 0
@@ -160,6 +162,8 @@ exports.RequestsService = RequestsService;
 exports.RequestsService = RequestsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(request_schema_1.Request.name)),
-    __metadata("design:paramtypes", [mongoose_2.Model])
+    __param(1, (0, mongoose_1.InjectModel)(table_schema_1.Table.name)),
+    __metadata("design:paramtypes", [mongoose_2.Model,
+        mongoose_2.Model])
 ], RequestsService);
 //# sourceMappingURL=requests.service.js.map

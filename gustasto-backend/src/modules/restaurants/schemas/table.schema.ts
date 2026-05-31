@@ -9,6 +9,9 @@ export class Table {
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Restaurant', required: true, index: true })
   restaurantId: mongoose.Types.ObjectId;
 
+  @Prop({ type: mongoose.Schema.Types.ObjectId, default: null, index: true })
+  branchId: mongoose.Types.ObjectId;
+
   @Prop({ required: true })
   tableNumber: string;
 

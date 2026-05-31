@@ -3,6 +3,7 @@ import * as mongoose from 'mongoose';
 export type TableDocument = Table & Document;
 export declare class Table {
     restaurantId: mongoose.Types.ObjectId;
+    branchId: mongoose.Types.ObjectId;
     tableNumber: string;
     qrCodeUrl: string;
 }
@@ -16,6 +17,15 @@ export declare const TableSchema: mongoose.Schema<Table, mongoose.Model<Table, a
     id: string;
 }, {
     restaurantId?: mongoose.SchemaDefinitionProperty<mongoose.Types.ObjectId, Table, Document<unknown, {}, Table, {
+        id: string;
+    }, mongoose.DefaultSchemaOptions> & Omit<Table & {
+        _id: mongoose.Types.ObjectId;
+    } & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
+    branchId?: mongoose.SchemaDefinitionProperty<mongoose.Types.ObjectId, Table, Document<unknown, {}, Table, {
         id: string;
     }, mongoose.DefaultSchemaOptions> & Omit<Table & {
         _id: mongoose.Types.ObjectId;

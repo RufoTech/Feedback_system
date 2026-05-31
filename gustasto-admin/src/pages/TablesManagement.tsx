@@ -1,17 +1,24 @@
 import React, { useState } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { 
   useGetTablesQuery, 
   useCreateTableMutation, 
   useDeleteTableMutation,
+  useGetRestaurantQuery,
   type TableItem 
 } from '../store/services/adminApi';
 
 export const TablesManagement: React.FC = () => {
   const { admin } = useAuth();
+  const { selectedBranchId } = useOutletContext<{ selectedBranchId: string }>();
   const restaurantId = admin?.restaurantId || admin?.id || ''; // admin.restaurantId or admin.id as fallback
 
-  const { data: tables = [], isLoading, error } = useGetTablesQuery(restaurantId, {
+  const { data: restaurant } = useGetRestaurantQuery(restaurantId, { skip: !restaurantId });
+  const hasBranches = restaurant?.branches && restaurant.branches.length > 0;
+  const isAllBranchesSelected = hasBranches && !selectedBranchId;
+
+  const { data: tables = [], isLoading, error } = useGetTablesQuery({ restaurantId, branchId: selectedBranchId }, {
     skip: !restaurantId,
   });
 
@@ -27,6 +34,10 @@ export const TablesManagement: React.FC = () => {
 
   const handleAddTable = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isAllBranchesSelected) {
+      setMsg({ type: 'error', text: 'Masa yaratmaq üçün əvvəlcə yuxarıdakı menyudan konkret filial seçin' });
+      return;
+    }
     if (!newTableNumber.trim()) {
       setMsg({ type: 'error', text: 'Zəhmət olmasa masa nömrəsini daxil edin' });
       return;
@@ -35,7 +46,7 @@ export const TablesManagement: React.FC = () => {
     setMsg(null);
 
     try {
-      await createTable({ restaurantId, tableNumber: newTableNumber.trim() }).unwrap();
+      await createTable({ restaurantId, tableNumber: newTableNumber.trim(), branchId: selectedBranchId }).unwrap();
       setMsg({ type: 'success', text: `Masa ${newTableNumber} uğurla əlavə olundu!` });
       setNewTableNumber('');
     } catch (err: any) {
@@ -169,16 +180,16 @@ export const TablesManagement: React.FC = () => {
           <div className="flex-1 relative">
             <input
               type="text"
-              placeholder="Masa nömrəsi (məsələn: 05, VIP 2)"
+              placeholder={isAllBranchesSelected ? "Masa yaratmaq üçün konkret filial seçin..." : "Masa nömrəsi (məsələn: 05, VIP 2)"}
               value={newTableNumber}
               onChange={(e) => setNewTableNumber(e.target.value)}
-              className="block w-full px-4 py-3 bg-[#f5f3f3] hover:bg-[#efeded] focus:bg-white border-none rounded-xl text-body-md text-[#1b1c1c] placeholder:text-[#4d4635]/40 focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all duration-200"
-              disabled={isCreating}
+              className="block w-full px-4 py-3 bg-[#f5f3f3] hover:bg-[#efeded] focus:bg-white border-none rounded-xl text-body-md text-[#1b1c1c] placeholder:text-[#4d4635]/40 focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all duration-200 disabled:opacity-60"
+              disabled={isCreating || isAllBranchesSelected}
             />
           </div>
           <button
             type="submit"
-            disabled={isCreating}
+            disabled={isCreating || isAllBranchesSelected}
             className="px-6 bg-primary text-on-primary rounded-xl font-label-md text-label-md font-bold hover:bg-primary/95 transition-all flex items-center shrink-0 disabled:opacity-50"
           >
             {isCreating ? (

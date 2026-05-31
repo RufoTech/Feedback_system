@@ -9,21 +9,26 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.RequestsModule = void 0;
 const common_1 = require("@nestjs/common");
 const mongoose_1 = require("@nestjs/mongoose");
+const config_1 = require("@nestjs/config");
 const requests_controller_1 = require("./requests.controller");
 const requests_service_1 = require("./requests.service");
 const request_schema_1 = require("./schemas/request.schema");
+const table_schema_1 = require("../restaurants/schemas/table.schema");
+const r2_upload_service_1 = require("./r2-upload.service");
 let RequestsModule = class RequestsModule {
 };
 exports.RequestsModule = RequestsModule;
 exports.RequestsModule = RequestsModule = __decorate([
     (0, common_1.Module)({
         imports: [
+            config_1.ConfigModule,
             mongoose_1.MongooseModule.forFeature([
                 { name: request_schema_1.Request.name, schema: request_schema_1.RequestSchema },
+                { name: table_schema_1.Table.name, schema: table_schema_1.TableSchema },
             ]),
         ],
         controllers: [requests_controller_1.RequestsController],
-        providers: [requests_service_1.RequestsService],
+        providers: [requests_service_1.RequestsService, r2_upload_service_1.R2UploadService],
         exports: [requests_service_1.RequestsService],
     })
 ], RequestsModule);

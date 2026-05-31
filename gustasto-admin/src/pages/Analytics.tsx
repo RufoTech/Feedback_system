@@ -1,5 +1,7 @@
 import React, { useEffect, useRef } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import { useGetStatsQuery } from '../store/services/adminApi';
+import { FaConciergeBell } from 'react-icons/fa';
 
 declare global {
   interface Window {
@@ -8,7 +10,8 @@ declare global {
 }
 
 export const Analytics: React.FC = () => {
-  const { data: stats, isLoading, error } = useGetStatsQuery(undefined, {
+  const { selectedBranchId } = useOutletContext<{ selectedBranchId: string }>();
+  const { data: stats, isLoading, error } = useGetStatsQuery(selectedBranchId, {
     pollingInterval: 8000, // Hər 8 saniyədən bir yenilənsin
   });
 
@@ -192,7 +195,7 @@ export const Analytics: React.FC = () => {
       </div>
 
       {/* Top KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-gutter">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-gutter">
         {/* CSAT Widget */}
         <div className="bg-surface rounded-xl p-6 shadow-[0px_4px_20px_rgba(0,0,0,0.04)] border border-surface-container flex flex-col justify-between relative overflow-hidden group">
           <div className="absolute -right-6 -top-6 w-24 h-24 bg-primary-container/20 rounded-full blur-xl group-hover:bg-primary-container/30 transition-all"></div>
@@ -216,7 +219,7 @@ export const Analytics: React.FC = () => {
         <div className="bg-surface rounded-xl p-6 shadow-[0px_4px_20px_rgba(0,0,0,0.04)] border border-surface-container flex flex-col justify-between">
           <div className="flex justify-between items-start mb-4">
             <h3 className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Ümumi Müraciət</h3>
-            <span className="material-symbols-outlined text-on-surface-variant bg-surface-container p-2 rounded-lg">concierge_bell</span>
+            <span className="text-on-surface-variant bg-surface-container p-2 rounded-lg inline-flex"><FaConciergeBell /></span>
           </div>
           <div>
             <div className="font-display-lg text-display-lg text-on-surface">{stats.totalRequests}</div>
@@ -227,23 +230,6 @@ export const Analytics: React.FC = () => {
           </div>
         </div>
 
-        {/* Response Time (Static Mock Kpi with Elegant Theme) */}
-        <div className="bg-surface rounded-xl p-6 shadow-[0px_4px_20px_rgba(0,0,0,0.04)] border border-surface-container flex flex-col justify-between">
-          <div className="flex justify-between items-start mb-4">
-            <h3 className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Cavablandırma Müddəti</h3>
-            <span className="material-symbols-outlined text-on-surface-variant bg-surface-container p-2 rounded-lg">timer</span>
-          </div>
-          <div>
-            <div className="flex items-baseline gap-1">
-              <span className="font-display-lg text-display-lg text-on-surface">1.8</span>
-              <span className="font-body-md text-body-md text-on-surface-variant">dəq</span>
-            </div>
-            <div className="flex items-center gap-1 mt-2 text-green-600 font-label-sm text-label-sm">
-              <span className="material-symbols-outlined text-[16px]">trending_down</span>
-              <span>Keçən həftəyə nisbətən -0.4d</span>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Charts Row 1 */}

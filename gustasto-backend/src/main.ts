@@ -10,9 +10,9 @@ async function bootstrap() {
   // Serves uploaded photos statically
   app.use('/uploads', express.static(join(__dirname, '..', 'uploads')));
 
-  // CORS — frontend kiosk (5173, 5175) və admin panel (5174) üçün
+  // CORS — frontend kiosk (5173, 5175), admin panel (5174) və superadmin panel (5176) üçün
   app.enableCors({
-    origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'],
+    origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176'],
     credentials: true,
   });
 

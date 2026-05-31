@@ -2,11 +2,13 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Request, RequestDocument } from './schemas/request.schema';
+import { Table, TableDocument } from '../restaurants/schemas/table.schema';
 
 @Injectable()
 export class RequestsService {
   constructor(
     @InjectModel(Request.name) private requestModel: Model<RequestDocument>,
+    @InjectModel(Table.name) private tableModel: Model<TableDocument>,
   ) {}
 
   async createRequest(data: {
@@ -19,10 +21,15 @@ export class RequestsService {
     isAnonymous?: boolean;
     customerName?: string;
     customerPhone?: string;
+    customerEmail?: string;
     photoUrl?: string;
   }): Promise<RequestDocument> {
+    const table = await this.tableModel.findById(data.tableId).exec();
+    const branchId = table?.branchId || null;
+
     const request = new this.requestModel({
       restaurantId: new Types.ObjectId(data.restaurantId),
+      branchId: branchId,
       tableId: new Types.ObjectId(data.tableId),
       tableNumber: data.tableNumber,
       type: data.type,
@@ -31,15 +38,15 @@ export class RequestsService {
       isAnonymous: data.isAnonymous || false,
       customerName: data.isAnonymous ? '' : data.customerName || '',
       customerPhone: data.isAnonymous ? '' : data.customerPhone || '',
+      customerEmail: data.isAnonymous ? '' : data.customerEmail || '',
       photoUrl: data.photoUrl || '',
-      status: 'pending',
     });
     return request.save();
   }
 
   async findRequestsByRestaurant(
     restaurantId: string,
-    filters: { type?: string; status?: string },
+    filters: { type?: string; startDate?: string; branchId?: string },
   ): Promise<RequestDocument[]> {
     if (!Types.ObjectId.isValid(restaurantId)) {
       throw new NotFoundException('Keçərsiz Restoran ID formatı');
@@ -49,36 +56,30 @@ export class RequestsService {
     if (filters.type) {
       query.type = filters.type;
     }
-    if (filters.status) {
-      query.status = filters.status;
+    if (filters.startDate) {
+      query.createdAt = { $gte: new Date(filters.startDate) };
+    }
+    if (filters.branchId && Types.ObjectId.isValid(filters.branchId)) {
+      query.branchId = new Types.ObjectId(filters.branchId);
     }
 
     return this.requestModel.find(query).sort({ createdAt: -1 }).exec();
   }
 
-  async updateStatus(requestId: string, status: string): Promise<RequestDocument> {
-    if (!Types.ObjectId.isValid(requestId)) {
-      throw new NotFoundException('Keçərsiz Müraciət ID formatı');
-    }
-
-    const request = await this.requestModel.findById(requestId).exec();
-    if (!request) {
-      throw new NotFoundException('Müraciət tapılmadı');
-    }
-
-    request.status = status;
-    return request.save();
-  }
-
-  async getStats(restaurantId: string) {
+  async getStats(restaurantId: string, branchId?: string) {
     if (!Types.ObjectId.isValid(restaurantId)) {
       throw new NotFoundException('Keçərsiz Restoran ID formatı');
     }
 
     const objectId = new Types.ObjectId(restaurantId);
+    const query: any = { restaurantId: objectId };
+
+    if (branchId && Types.ObjectId.isValid(branchId)) {
+      query.branchId = new Types.ObjectId(branchId);
+    }
 
     // Bütün müraciətlər
-    const allRequests = await this.requestModel.find({ restaurantId: objectId }).exec();
+    const allRequests = await this.requestModel.find(query).exec();
 
     // 1. Total Requests
     const totalRequests = allRequests.length;

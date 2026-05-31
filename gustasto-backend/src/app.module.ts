@@ -7,6 +7,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { MailModule } from './modules/mail/mail.module';
 import { RestaurantsModule } from './modules/restaurants/restaurants.module';
 import { RequestsModule } from './modules/requests/requests.module';
+import { SuperAdminModule } from './modules/super-admin/super-admin.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { RequestsModule } from './modules/requests/requests.module';
     MailModule,
     RestaurantsModule,
     RequestsModule,
+    SuperAdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

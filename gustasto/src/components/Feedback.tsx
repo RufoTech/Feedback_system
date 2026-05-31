@@ -14,6 +14,7 @@ export default function Feedback() {
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
   const [lang, setLang] = useState<Language>(() => (localStorage.getItem("lang") as Language) || "AZ");
 
@@ -53,6 +54,7 @@ export default function Feedback() {
     if (!isAnonymous) {
       formData.append("customerName", name);
       formData.append("customerPhone", phone);
+      formData.append("customerEmail", email);
     }
 
     if (photo) {
@@ -66,10 +68,17 @@ export default function Feedback() {
       setPhotoPreview(null);
       setName("");
       setPhone("");
+      setEmail("");
       setIsAnonymous(false);
       setShowSuccess(true);
-    } catch (err) {
-      console.error("Şikayət göndərilərkən xəta baş verdi:", err);
+    } catch (err: any) {
+      console.error("=== XƏTA DETALLARI ===");
+      console.error("Xəta obyekti:", err);
+      console.error("Status:", err?.status);
+      console.error("Data:", JSON.stringify(err?.data, null, 2));
+      console.error("Message:", err?.data?.message || err?.message);
+      console.error("Error:", err?.error);
+      console.error("=== XƏTA SONU ===");
       alert("Xəta baş verdi, zəhmət olmasa yenidən cəhd edin.");
     }
   }
@@ -82,12 +91,17 @@ export default function Feedback() {
           <span className="material-symbols-outlined text-[24px]">arrow_back</span>
         </Link>
         <div className="text-center absolute left-1/2 -translate-x-1/2 flex flex-col items-center">
-          <span className="text-headline-lg-mobile font-headline-lg-mobile font-bold text-primary tracking-tight">
-            {session.restaurantName || "Gusto"}
-          </span>
-          <span className="text-[11px] text-on-surface-variant font-medium uppercase tracking-wider -mt-1">
-            Masa {session.tableNumber || ""}
-          </span>
+          {session.logo ? (
+            <img
+              src={session.logo}
+              alt={session.restaurantName || "Gusto"}
+              className="max-h-14 w-auto object-contain"
+            />
+          ) : (
+            <span className="text-headline-lg-mobile font-headline-lg-mobile font-bold text-primary tracking-tight">
+              {session.restaurantName || "Gusto"}
+            </span>
+          )}
         </div>
         <LanguageSelector />
       </header>
@@ -227,6 +241,22 @@ export default function Feedback() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   required={!isAnonymous}
+                  disabled={isSubmitting}
+                />
+              </div>
+              <div className="flex flex-col space-y-1">
+                <label
+                  className="text-label-md font-label-md text-on-surface-variant"
+                  htmlFor="email"
+                >
+                  {t.email}
+                </label>
+                <input
+                  id="email"
+                  className="w-full form-input-bottom-border text-body-md font-body-md text-on-surface py-3 focus:ring-0 focus:border-primary transition-colors"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   disabled={isSubmitting}
                 />
               </div>

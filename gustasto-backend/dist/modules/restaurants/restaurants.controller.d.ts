@@ -4,8 +4,8 @@ export declare class RestaurantsController {
     constructor(restaurantsService: RestaurantsService);
     getAllRestaurants(): Promise<import("./schemas/restaurant.schema").RestaurantDocument[]>;
     getRestaurantById(id: string): Promise<import("./schemas/restaurant.schema").RestaurantDocument>;
-    getTablesByRestaurant(id: string): Promise<import("./schemas/table.schema").TableDocument[]>;
-    createTable(restaurantId: string, tableNumber: string): Promise<import("./schemas/table.schema").TableDocument>;
+    getTablesByRestaurant(id: string, branchId?: string): Promise<import("./schemas/table.schema").TableDocument[]>;
+    createTable(restaurantId: string, tableNumber: string, branchId?: string): Promise<import("./schemas/table.schema").TableDocument>;
     deleteTable(tableId: string): Promise<{
         deleted: boolean;
     }>;
@@ -19,5 +19,10 @@ export declare class RestaurantsController {
             logo: string;
             address: string;
         };
+        branch: {
+            id: any;
+            name: string;
+            address: string | undefined;
+        } | null;
     }>;
 }

@@ -9,6 +9,9 @@ export class Request {
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Restaurant', required: true, index: true })
   restaurantId: mongoose.Types.ObjectId;
 
+  @Prop({ type: mongoose.Schema.Types.ObjectId, default: null, index: true })
+  branchId: mongoose.Types.ObjectId;
+
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Table', required: true })
   tableId: mongoose.Types.ObjectId;
 
@@ -34,10 +37,10 @@ export class Request {
   customerPhone: string;
 
   @Prop({ default: '' })
-  photoUrl: string;
+  customerEmail: string;
 
-  @Prop({ default: 'pending', enum: ['pending', 'in_progress', 'completed'], index: true })
-  status: string;
+  @Prop({ default: '' })
+  photoUrl: string;
 
   createdAt: Date;
   updatedAt: Date;

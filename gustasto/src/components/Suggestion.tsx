@@ -11,7 +11,8 @@ export default function Suggestion() {
   const [suggestionText, setSuggestionText] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [name, setName] = useState("");
-  const [contact, setContact] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
   const [lang, setLang] = useState<Language>(() => (localStorage.getItem("lang") as Language) || "AZ");
 
@@ -42,14 +43,16 @@ export default function Suggestion() {
     
     if (!isAnonymous) {
       formData.append("customerName", name);
-      formData.append("customerPhone", contact); // contact üçün də phone sahəsini istifadə edirik backend-də
+      formData.append("customerPhone", phone);
+      formData.append("customerEmail", email);
     }
 
     try {
       await submitRequest(formData).unwrap();
       setSuggestionText("");
       setName("");
-      setContact("");
+      setPhone("");
+      setEmail("");
       setIsAnonymous(false);
       setShowSuccess(true);
     } catch (err) {
@@ -66,12 +69,17 @@ export default function Suggestion() {
           <span className="material-symbols-outlined text-[24px]">arrow_back</span>
         </Link>
         <div className="text-center absolute left-1/2 -translate-x-1/2 flex flex-col items-center">
-          <span className="text-headline-lg-mobile font-headline-lg-mobile font-bold text-primary tracking-tight">
-            {session.restaurantName || "Gusto"}
-          </span>
-          <span className="text-[11px] text-on-surface-variant font-medium uppercase tracking-wider -mt-1">
-            Masa {session.tableNumber || ""}
-          </span>
+          {session.logo ? (
+            <img
+              src={session.logo}
+              alt={session.restaurantName || "Gusto"}
+              className="max-h-14 w-auto object-contain"
+            />
+          ) : (
+            <span className="text-headline-lg-mobile font-headline-lg-mobile font-bold text-primary tracking-tight">
+              {session.restaurantName || "Gusto"}
+            </span>
+          )}
         </div>
         <LanguageSelector />
       </header>
@@ -155,11 +163,21 @@ export default function Suggestion() {
             <div className="relative">
               <input
                 className="w-full h-14 px-6 bg-surface-container-low border border-outline-variant rounded-xl text-body-md font-body-md focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
-                placeholder={t.contactInfo}
-                type="text"
-                value={contact}
-                onChange={(e) => setContact(e.target.value)}
+                placeholder={t.phone}
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
                 required={!isAnonymous}
+                disabled={isSubmitting || isAnonymous}
+              />
+            </div>
+            <div className="relative">
+              <input
+                className="w-full h-14 px-6 bg-surface-container-low border border-outline-variant rounded-xl text-body-md font-body-md focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
+                placeholder={t.email}
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 disabled={isSubmitting || isAnonymous}
               />
             </div>

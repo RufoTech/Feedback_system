@@ -42,13 +42,17 @@ let RestaurantsService = class RestaurantsService {
         }
         return restaurant;
     }
-    async findTablesByRestaurant(restaurantId) {
+    async findTablesByRestaurant(restaurantId, branchId) {
         if (!mongoose_2.Types.ObjectId.isValid(restaurantId)) {
             throw new common_1.NotFoundException('Keçərsiz Restoran ID formatı');
         }
-        return this.tableModel.find({ restaurantId: new mongoose_2.Types.ObjectId(restaurantId) }).exec();
+        const query = { restaurantId: new mongoose_2.Types.ObjectId(restaurantId) };
+        if (branchId && mongoose_2.Types.ObjectId.isValid(branchId)) {
+            query.branchId = new mongoose_2.Types.ObjectId(branchId);
+        }
+        return this.tableModel.find(query).exec();
     }
-    async createTable(restaurantId, tableNumber) {
+    async createTable(restaurantId, tableNumber, branchId) {
         if (!mongoose_2.Types.ObjectId.isValid(restaurantId)) {
             throw new common_1.NotFoundException('Keçərsiz Restoran ID formatı');
         }
@@ -56,10 +60,14 @@ let RestaurantsService = class RestaurantsService {
         if (!restaurant) {
             throw new common_1.NotFoundException('Restoran tapılmadı');
         }
-        const table = new this.tableModel({
+        const tableData = {
             restaurantId: new mongoose_2.Types.ObjectId(restaurantId),
             tableNumber,
-        });
+        };
+        if (branchId && mongoose_2.Types.ObjectId.isValid(branchId)) {
+            tableData.branchId = new mongoose_2.Types.ObjectId(branchId);
+        }
+        const table = new this.tableModel(tableData);
         const savedTable = await table.save();
         const qrCodeUrl = `http://localhost:5173/?restaurantId=${restaurantId}&tableId=${savedTable._id}`;
         savedTable.qrCodeUrl = qrCodeUrl;

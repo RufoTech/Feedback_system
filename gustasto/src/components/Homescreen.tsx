@@ -10,6 +10,7 @@ import { useSubmitRequestMutation } from "../store/services/gustoApi";
 
 export default function Homescreen() {
   const [rating, setRating] = useState(-1);
+  const [hasRated, setHasRated] = useState(false);
   const [lang, setLang] = useState<Language>(() => (localStorage.getItem("lang") as Language) || "AZ");
   const [showPopup, setShowPopup] = useState(false);
   const [popupMessage, setPopupMessage] = useState("");
@@ -18,6 +19,16 @@ export default function Homescreen() {
 
   const session = useSelector((state: RootState) => state.session);
   const [submitRequest, { isLoading: isSubmittingRating }] = useSubmitRequestMutation();
+
+  useEffect(() => {
+    if (session.tableId) {
+      const saved = localStorage.getItem(`gusto_rated_${session.tableId}`);
+      if (saved) {
+        setRating(parseInt(saved, 10) - 1);
+        setHasRated(true);
+      }
+    }
+  }, [session.tableId]);
 
   useEffect(() => {
     const handleLangChange = () => {
@@ -49,7 +60,7 @@ export default function Homescreen() {
   ];
 
   const handleRatingSubmit = async () => {
-    if (rating === -1) return;
+    if (rating === -1 || hasRated) return;
     
     const ulduz = rating + 1; // 0-4 indeksini 1-5 ulduza çeviririk
     const formData = new FormData();
@@ -63,9 +74,12 @@ export default function Homescreen() {
 
     try {
       await submitRequest(formData).unwrap();
+      if (session.tableId) {
+        localStorage.setItem(`gusto_rated_${session.tableId}`, ulduz.toString());
+      }
       setPopupMessage(t.ratingSentAlert);
       setShowPopup(true);
-      setRating(-1);
+      setHasRated(true);
     } catch (err) {
       console.error("Qiymətləndirmə göndərilərkən xəta baş verdi:", err);
       alert("Xəta baş verdi, zəhmət olmasa yenidən cəhd edin.");
@@ -91,18 +105,23 @@ export default function Homescreen() {
           <span className="material-symbols-outlined text-[22px]">logout</span>
         </button>
         <div className="text-center absolute left-1/2 -translate-x-1/2 flex flex-col items-center">
-          <span className="text-headline-lg-mobile font-headline-lg-mobile font-bold text-primary tracking-tight">
-            {session.restaurantName || "Gusto"}
-          </span>
-          <span className="text-[11px] text-on-surface-variant font-medium uppercase tracking-wider -mt-1">
-            Masa {session.tableNumber || ""}
-          </span>
+          {session.logo ? (
+            <img
+              src={session.logo}
+              alt={session.restaurantName || "Gusto"}
+              className="max-h-14 w-auto object-contain"
+            />
+          ) : (
+            <span className="text-headline-lg-mobile font-headline-lg-mobile font-bold text-primary tracking-tight">
+              {session.restaurantName || "Gusto"}
+            </span>
+          )}
         </div>
         <LanguageSelector />
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 px-container-margin py-stack-md flex flex-col gap-stack-md w-full max-w-2xl mx-auto">
+      <main className="flex-grow px-container-margin py-stack-md flex flex-col gap-stack-md w-full max-w-2xl mx-auto">
         {/* Actions Bento Grid */}
         <section className="flex flex-col gap-stack-sm">
           <h1 className="text-headline-md font-headline-md text-on-surface">{t.homeTitle}</h1>
@@ -154,9 +173,9 @@ export default function Homescreen() {
             {[0, 1, 2, 3, 4].map((star) => (
               <button
                 key={star}
-                onClick={() => setRating(star)}
-                disabled={isSubmittingRating}
-                className="focus:outline-none hover:scale-110 transition-transform duration-200 group disabled:opacity-50"
+                onClick={() => !hasRated && setRating(star)}
+                disabled={isSubmittingRating || hasRated}
+                className="focus:outline-none hover:scale-110 transition-transform duration-200 group disabled:opacity-80"
               >
                 <span
                   className={`material-symbols-outlined text-[36px] ${
@@ -170,10 +189,21 @@ export default function Homescreen() {
               </button>
             ))}
           </div>
-          <p className="text-label-sm font-label-sm text-on-surface-variant z-10">
-            {t.rateTap}
-          </p>
-           {rating > -1 && (
+          {hasRated ? (
+            <p className="text-label-sm font-label-sm text-green-600 font-semibold z-10 flex items-center gap-1.5 animate-pulse">
+              <span className="material-symbols-outlined text-[16px] text-green-600">check_circle</span>
+              {lang === "AZ" 
+                ? "Dəyərləndirməniz üçün təşəkkür edirik!" 
+                : lang === "RU" 
+                  ? "Спасибо за вашу оценку!" 
+                  : "Thank you for your rating!"}
+            </p>
+          ) : (
+            <p className="text-label-sm font-label-sm text-on-surface-variant z-10">
+              {t.rateTap}
+            </p>
+          )}
+           {rating > -1 && !hasRated && (
             <button
               onClick={handleRatingSubmit}
               disabled={isSubmittingRating}

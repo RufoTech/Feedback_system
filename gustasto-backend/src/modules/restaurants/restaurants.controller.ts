@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, HttpStatus, HttpCode, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, HttpStatus, HttpCode, Delete, Query } from '@nestjs/common';
 import { RestaurantsService } from './restaurants.service';
 
 @Controller()
@@ -16,8 +16,11 @@ export class RestaurantsController {
   }
 
   @Get('restaurants/:id/tables')
-  async getTablesByRestaurant(@Param('id') id: string) {
-    return this.restaurantsService.findTablesByRestaurant(id);
+  async getTablesByRestaurant(
+    @Param('id') id: string,
+    @Query('branchId') branchId?: string,
+  ) {
+    return this.restaurantsService.findTablesByRestaurant(id, branchId);
   }
 
   @Post('restaurants/:id/tables')
@@ -25,8 +28,9 @@ export class RestaurantsController {
   async createTable(
     @Param('id') restaurantId: string,
     @Body('tableNumber') tableNumber: string,
+    @Body('branchId') branchId?: string,
   ) {
-    return this.restaurantsService.createTable(restaurantId, tableNumber);
+    return this.restaurantsService.createTable(restaurantId, tableNumber, branchId);
   }
 
   @Delete('tables/:tableId')
@@ -40,6 +44,21 @@ export class RestaurantsController {
     const table = await this.restaurantsService.findTableById(tableId);
     // Həmçinin restoran məlumatlarını da gətiririk
     const restaurant = await this.restaurantsService.findRestaurantById(table.restaurantId.toString());
+
+    let branchInfo = null;
+    if (table.branchId && restaurant.branches) {
+      const branch = restaurant.branches.find(
+        (b) => b._id.toString() === table.branchId.toString(),
+      );
+      if (branch) {
+        branchInfo = {
+          id: branch._id,
+          name: branch.name,
+          address: branch.address,
+        };
+      }
+    }
+
     return {
       id: table._id,
       tableNumber: table.tableNumber,
@@ -50,6 +69,7 @@ export class RestaurantsController {
         logo: restaurant.logo,
         address: restaurant.address,
       },
+      branch: branchInfo,
     };
   }
 }

@@ -47,6 +47,7 @@ const mongoose_1 = require("@nestjs/mongoose");
 const mongoose = __importStar(require("mongoose"));
 let Request = class Request {
     restaurantId;
+    branchId;
     tableId;
     tableNumber;
     type;
@@ -55,8 +56,8 @@ let Request = class Request {
     isAnonymous;
     customerName;
     customerPhone;
+    customerEmail;
     photoUrl;
-    status;
     createdAt;
     updatedAt;
 };
@@ -65,6 +66,10 @@ __decorate([
     (0, mongoose_1.Prop)({ type: mongoose.Schema.Types.ObjectId, ref: 'Restaurant', required: true, index: true }),
     __metadata("design:type", mongoose.Types.ObjectId)
 ], Request.prototype, "restaurantId", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: mongoose.Schema.Types.ObjectId, default: null, index: true }),
+    __metadata("design:type", mongoose.Types.ObjectId)
+], Request.prototype, "branchId", void 0);
 __decorate([
     (0, mongoose_1.Prop)({ type: mongoose.Schema.Types.ObjectId, ref: 'Table', required: true }),
     __metadata("design:type", mongoose.Types.ObjectId)
@@ -100,11 +105,11 @@ __decorate([
 __decorate([
     (0, mongoose_1.Prop)({ default: '' }),
     __metadata("design:type", String)
-], Request.prototype, "photoUrl", void 0);
+], Request.prototype, "customerEmail", void 0);
 __decorate([
-    (0, mongoose_1.Prop)({ default: 'pending', enum: ['pending', 'in_progress', 'completed'], index: true }),
+    (0, mongoose_1.Prop)({ default: '' }),
     __metadata("design:type", String)
-], Request.prototype, "status", void 0);
+], Request.prototype, "photoUrl", void 0);
 exports.Request = Request = __decorate([
     (0, mongoose_1.Schema)({ timestamps: true })
 ], Request);

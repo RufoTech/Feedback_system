@@ -3,6 +3,7 @@ import * as mongoose from 'mongoose';
 export type RequestDocument = Request & Document;
 export declare class Request {
     restaurantId: mongoose.Types.ObjectId;
+    branchId: mongoose.Types.ObjectId;
     tableId: mongoose.Types.ObjectId;
     tableNumber: string;
     type: string;
@@ -11,8 +12,8 @@ export declare class Request {
     isAnonymous: boolean;
     customerName: string;
     customerPhone: string;
+    customerEmail: string;
     photoUrl: string;
-    status: string;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -26,6 +27,15 @@ export declare const RequestSchema: mongoose.Schema<Request, mongoose.Model<Requ
     id: string;
 }, {
     restaurantId?: mongoose.SchemaDefinitionProperty<mongoose.Types.ObjectId, Request, Document<unknown, {}, Request, {
+        id: string;
+    }, mongoose.DefaultSchemaOptions> & Omit<Request & {
+        _id: mongoose.Types.ObjectId;
+    } & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
+    branchId?: mongoose.SchemaDefinitionProperty<mongoose.Types.ObjectId, Request, Document<unknown, {}, Request, {
         id: string;
     }, mongoose.DefaultSchemaOptions> & Omit<Request & {
         _id: mongoose.Types.ObjectId;
@@ -106,7 +116,7 @@ export declare const RequestSchema: mongoose.Schema<Request, mongoose.Model<Requ
     }, "id"> & {
         id: string;
     }> | undefined;
-    photoUrl?: mongoose.SchemaDefinitionProperty<string, Request, Document<unknown, {}, Request, {
+    customerEmail?: mongoose.SchemaDefinitionProperty<string, Request, Document<unknown, {}, Request, {
         id: string;
     }, mongoose.DefaultSchemaOptions> & Omit<Request & {
         _id: mongoose.Types.ObjectId;
@@ -115,7 +125,7 @@ export declare const RequestSchema: mongoose.Schema<Request, mongoose.Model<Requ
     }, "id"> & {
         id: string;
     }> | undefined;
-    status?: mongoose.SchemaDefinitionProperty<string, Request, Document<unknown, {}, Request, {
+    photoUrl?: mongoose.SchemaDefinitionProperty<string, Request, Document<unknown, {}, Request, {
         id: string;
     }, mongoose.DefaultSchemaOptions> & Omit<Request & {
         _id: mongoose.Types.ObjectId;
